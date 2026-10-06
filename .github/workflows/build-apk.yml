@@ -1,3 +1,4 @@
+
 name: Build APK
 
 on:
@@ -26,6 +27,42 @@ jobs:
         run: |
           mkdir project
           unzip -q XAU_Trader_MT5_Connected_Architecture_FIXED.zip -d project
+
+      - name: Fix Java and Kotlin targets
+        working-directory: project/android
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/build.gradle")
+          s = p.read_text()
+          start = s.index("android {")
+          depth = 0
+          end = None
+          for i in range(start, len(s)):
+              if s[i] == "{":
+                  depth += 1
+              elif s[i] == "}":
+                  depth -= 1
+                  if depth == 0:
+                      end = i
+                      break
+          block = s[start:end+1]
+          if "compileOptions" not in block:
+              block = block[:-1] + '''
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          '''
+          if "kotlinOptions" not in block:
+              block = block[:-1] + '''
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          '''
+          s = s[:start] + block + s[end+1:]
+          p.write_text(s)
+          PY
 
       - name: Build APK
         working-directory: project/android
